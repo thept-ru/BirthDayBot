@@ -6,7 +6,7 @@ from telegram.ext import (
     MessageHandler, CallbackQueryHandler, filters
 )
 from database import init_db
-from handlers import BirthdayHandler, WAITING_FOR_DATE, WAITING_FOR_CONFIRMATION
+from handlers import BirthdayHandler, WAITING_FOR_MONTH, WAITING_FOR_DAY
 from scheduler import BirthdayScheduler
 import asyncio
 
@@ -52,11 +52,11 @@ async def main():
     set_birthday_conv = ConversationHandler(
         entry_points=[CommandHandler("setbirthday", BirthdayHandler.set_birthday_start)],
         states={
-            WAITING_FOR_DATE: [
-                CallbackQueryHandler(BirthdayHandler.set_birthday_month, pattern="^month_"),
+            WAITING_FOR_MONTH: [
+                CallbackQueryHandler(BirthdayHandler.set_birthday_month, pattern="^set_month_"),
             ],
-            WAITING_FOR_CONFIRMATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, BirthdayHandler.set_birthday_day),
+            WAITING_FOR_DAY: [
+                CallbackQueryHandler(BirthdayHandler.set_birthday_day, pattern="^set_day_"),
             ],
         },
         fallbacks=[CommandHandler("cancel", BirthdayHandler.cancel_conversation)],
@@ -67,11 +67,11 @@ async def main():
     update_birthday_conv = ConversationHandler(
         entry_points=[CommandHandler("updatebirthday", BirthdayHandler.update_birthday_start)],
         states={
-            WAITING_FOR_DATE: [
+            WAITING_FOR_MONTH: [
                 CallbackQueryHandler(BirthdayHandler.update_birthday_month, pattern="^upd_month_"),
             ],
-            WAITING_FOR_CONFIRMATION: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, BirthdayHandler.update_birthday_day),
+            WAITING_FOR_DAY: [
+                CallbackQueryHandler(BirthdayHandler.update_birthday_day, pattern="^upd_day_"),
             ],
         },
         fallbacks=[CommandHandler("cancel", BirthdayHandler.cancel_conversation)],

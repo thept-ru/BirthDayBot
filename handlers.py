@@ -8,8 +8,8 @@ from utils import validate_date, parse_date_string, format_date
 logger = logging.getLogger(__name__)
 
 # Conversation states
-WAITING_FOR_DATE = 1
-WAITING_FOR_CONFIRMATION = 2
+WAITING_FOR_MONTH = 1
+WAITING_FOR_DAY = 2
 
 # Month names in Russian
 MONTH_NAMES = {
@@ -43,7 +43,7 @@ class BirthdayHandler:
             "/nextbirthdays - Ближайшие дни рождения (на неделю)\n"
             "/listbirthdays - Все дни рождения в чате (только для администраторов)\n"
             "/help - Эта справка\n\n"
-            "💡 Формат даты: ДД.ММ (например, 25.12)"
+            "💡 Выбирайте дату нажатием кнопок!"
         )
         await update.message.reply_text(help_text)
 
@@ -52,18 +52,23 @@ class BirthdayHandler:
         """Start birthday registration process"""
         keyboard = []
         
-        # Create date picker keyboard (simplified: day and month buttons)
-        for month in range(1, 13):
-            keyboard.append([InlineKeyboardButton(MONTH_NAMES[month], callback_data=f"month_{month}")])
+        # Create month buttons (4 months per row)
+        for i in range(1, 13, 4):
+            row = []
+            for j in range(4):
+                month = i + j
+                if month <= 12:
+                    row.append(InlineKeyboardButton(f"{month:2d}", callback_data=f"set_month_{month}"))
+            keyboard.append(row)
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            "📅 Выберите месяц вашего дня рождения:",
+            "📅 Выберите месяц вашего дня рождения:\n(1-12)",
             reply_markup=reply_markup
         )
         
         context.user_data['chat_id'] = update.message.chat_id
-        return WAITING_FOR_DATE
+        return WAITING_FOR_MONTH
 
     @staticmethod
     async def set_birthday_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -71,48 +76,60 @@ class BirthdayHandler:
         query = update.callback_query
         await query.answer()
 
-        month = int(query.data.split('_')[1])
+        month = int(query.data.split('_')[2])
         context.user_data['month'] = month
 
-        # Ask for day
+        # Get days in month
+        days_in_month = {1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
+        max_day = days_in_month[month]
+        
+        # Create day buttons (7 days per row)
+        keyboard = []
+        for i in range(1, max_day + 1, 7):
+            row = []
+            for j in range(7):
+                day = i + j
+                if day <= max_day:
+                    row.append(InlineKeyboardButton(f"{day:2d}", callback_data=f"set_day_{day}"))
+            keyboard.append(row)
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            text=f"📅 Выберите день (1-31) для {MONTH_NAMES[month]}:\n\n"
-                 "Введите число:"
+            text=f"📅 Выберите день для {MONTH_NAMES[month]}:\n(1-{max_day})",
+            reply_markup=reply_markup
         )
         
-        return WAITING_FOR_CONFIRMATION
+        return WAITING_FOR_DAY
 
     @staticmethod
     async def set_birthday_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Handle day input and save birthday"""
+        """Handle day selection and save birthday"""
+        query = update.callback_query
+        await query.answer()
+        
+        day = int(query.data.split('_')[2])
+        month = context.user_data.get('month')
+        chat_id = context.user_data.get('chat_id')
+        user_id = query.from_user.id
+        username = query.from_user.username
+
+        # Validate date
+        is_valid, error_msg = validate_date(day, month)
+        if not is_valid:
+            await query.answer(error_msg, show_alert=True)
+            return WAITING_FOR_DAY
+
+        # Save to database
+        db = SessionLocal()
         try:
-            day = int(update.message.text.strip())
-            month = context.user_data.get('month')
-            chat_id = context.user_data.get('chat_id')
-            user_id = update.message.from_user.id
-            username = update.message.from_user.username
+            success, message = BirthdayService.register_birthday(
+                db, user_id, chat_id, day, month, username
+            )
+            await query.edit_message_text(text=message)
+        finally:
+            db.close()
 
-            # Validate date
-            is_valid, error_msg = validate_date(day, month)
-            if not is_valid:
-                await update.message.reply_text(error_msg)
-                return WAITING_FOR_CONFIRMATION
-
-            # Save to database
-            db = SessionLocal()
-            try:
-                success, message = BirthdayService.register_birthday(
-                    db, user_id, chat_id, day, month, username
-                )
-                await update.message.reply_text(message)
-            finally:
-                db.close()
-
-            return ConversationHandler.END
-
-        except ValueError:
-            await update.message.reply_text("❌ Пожалуйста, введите число.")
-            return WAITING_FOR_CONFIRMATION
+        return ConversationHandler.END
 
     @staticmethod
     async def my_birthday(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -139,17 +156,23 @@ class BirthdayHandler:
         """Start birthday update process"""
         keyboard = []
         
-        for month in range(1, 13):
-            keyboard.append([InlineKeyboardButton(MONTH_NAMES[month], callback_data=f"upd_month_{month}")])
+        # Create month buttons (4 months per row)
+        for i in range(1, 13, 4):
+            row = []
+            for j in range(4):
+                month = i + j
+                if month <= 12:
+                    row.append(InlineKeyboardButton(f"{month:2d}", callback_data=f"upd_month_{month}"))
+            keyboard.append(row)
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            "📅 Выберите новый месяц вашего дня рождения:",
+            "📅 Выберите новый месяц вашего дня рождения:\n(1-12)",
             reply_markup=reply_markup
         )
         
         context.user_data['chat_id'] = update.message.chat_id
-        return WAITING_FOR_DATE
+        return WAITING_FOR_MONTH
 
     @staticmethod
     async def update_birthday_month(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -160,44 +183,57 @@ class BirthdayHandler:
         month = int(query.data.split('_')[2])
         context.user_data['month'] = month
 
+        # Get days in month
+        days_in_month = {1: 31, 2: 29, 3: 31, 4: 30, 5: 31, 6: 30, 7: 31, 8: 31, 9: 30, 10: 31, 11: 30, 12: 31}
+        max_day = days_in_month[month]
+        
+        # Create day buttons (7 days per row)
+        keyboard = []
+        for i in range(1, max_day + 1, 7):
+            row = []
+            for j in range(7):
+                day = i + j
+                if day <= max_day:
+                    row.append(InlineKeyboardButton(f"{day:2d}", callback_data=f"upd_day_{day}"))
+            keyboard.append(row)
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            text=f"📅 Выберите день (1-31) для {MONTH_NAMES[month]}:\n\n"
-                 "Введите число:"
+            text=f"📅 Выберите день для {MONTH_NAMES[month]}:\n(1-{max_day})",
+            reply_markup=reply_markup
         )
         
-        return WAITING_FOR_CONFIRMATION
+        return WAITING_FOR_DAY
 
     @staticmethod
     async def update_birthday_day(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Handle day input and update birthday"""
+        """Handle day selection and update birthday"""
+        query = update.callback_query
+        await query.answer()
+        
+        day = int(query.data.split('_')[2])
+        month = context.user_data.get('month')
+        chat_id = context.user_data.get('chat_id')
+        user_id = query.from_user.id
+        username = query.from_user.username
+
+        # Validate date
+        is_valid, error_msg = validate_date(day, month)
+        if not is_valid:
+            await query.answer(error_msg, show_alert=True)
+            return WAITING_FOR_DAY
+
+        # Update in database
+        db = SessionLocal()
         try:
-            day = int(update.message.text.strip())
-            month = context.user_data.get('month')
-            chat_id = context.user_data.get('chat_id')
-            user_id = update.message.from_user.id
-            username = update.message.from_user.username
+            success, message = BirthdayService.register_birthday(
+                db, user_id, chat_id, day, month, username
+            )
+            await query.edit_message_text(text=message)
+        finally:
+            db.close()
 
-            # Validate date
-            is_valid, error_msg = validate_date(day, month)
-            if not is_valid:
-                await update.message.reply_text(error_msg)
-                return WAITING_FOR_CONFIRMATION
-
-            # Update in database
-            db = SessionLocal()
-            try:
-                success, message = BirthdayService.register_birthday(
-                    db, user_id, chat_id, day, month, username
-                )
-                await update.message.reply_text(message)
-            finally:
-                db.close()
-
-            return ConversationHandler.END
-
-        except ValueError:
-            await update.message.reply_text("❌ Пожалуйста, введите число.")
-            return WAITING_FOR_CONFIRMATION
+        return ConversationHandler.END
 
     @staticmethod
     async def delete_birthday(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
