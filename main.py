@@ -78,6 +78,23 @@ async def main():
     )
     application.add_handler(update_birthday_conv)
 
+    # Conversation handler for new members
+    new_member_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.STATUS_UPDATE, BirthdayHandler.new_member_welcome)],
+        states={
+            WAITING_FOR_MONTH: [
+                CallbackQueryHandler(BirthdayHandler.new_member_month, pattern="^new_month_"),
+                CallbackQueryHandler(BirthdayHandler.new_member_month, pattern="^skip_birthday"),
+            ],
+            WAITING_FOR_DAY: [
+                CallbackQueryHandler(BirthdayHandler.new_member_day, pattern="^new_day_"),
+                CallbackQueryHandler(BirthdayHandler.new_member_day, pattern="^skip_birthday"),
+            ],
+        },
+        fallbacks=[],
+    )
+    application.add_handler(new_member_conv)
+
     # Start the scheduler in a background task
     async def start_scheduler():
         await scheduler.start()
