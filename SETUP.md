@@ -12,7 +12,8 @@ Birthday Reminder Bot is a Telegram bot that automatically manages and greets us
 
 ### 1. Clone or navigate to the project directory
 ```bash
-cd /Users/alexeychekunkov/PetProjects/BirthDayBot
+git clone https://github.com/thept-ru/BirthDayBot.git
+cd BirthDayBot
 ```
 
 ### 2. Create and activate a virtual environment
@@ -103,8 +104,11 @@ BirthDayBot/
 ├── services.py          # Business logic for birthday operations
 ├── scheduler.py         # Daily greeting scheduler
 ├── utils.py             # Utility functions (validation, formatting)
+├── backup_manager.py    # Automated backup management script
 ├── requirements.txt     # Python dependencies
 ├── .env.example         # Example environment configuration
+├── SETUP.md             # Setup and installation guide
+├── BACKUP_SETUP.md      # Backup configuration guide
 └── .gitignore          # Git ignore file
 ```
 
@@ -117,6 +121,7 @@ BirthDayBot/
 ✅ **Data management** - Update/delete operations per chat  
 ✅ **Date validation** - Prevents invalid dates (e.g., 30.02)  
 ✅ **Scalable** - Handles thousands of chats and users  
+✅ **Automated backups** - Hourly (7 days), weekly (1 year), yearly (permanent) backups  
 
 ## Troubleshooting
 
@@ -134,6 +139,11 @@ BirthDayBot/
 1. Check that you have write permissions to the project directory
 2. For SQLite: delete `birthday_bot.db` and restart to reinitialize
 3. For PostgreSQL: verify connection string and database exists
+
+### Data backup and restore
+1. See [BACKUP_SETUP.md](BACKUP_SETUP.md) for detailed backup configuration
+2. Automated backups are created hourly, weekly, and yearly
+3. To restore from backup: stop bot → restore DB file → start bot
 
 ## Development
 

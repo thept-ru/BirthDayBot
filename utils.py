@@ -1,5 +1,11 @@
 from datetime import datetime
 from typing import Tuple, Optional
+import asyncio
+from telegram import Update
+from telegram.error import TelegramError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def validate_date(day: int, month: int) -> Tuple[bool, str]:
@@ -81,3 +87,28 @@ def is_birthday_today(day: int, month: int) -> bool:
     """Check if given date is today"""
     today = datetime.now().date()
     return today.day == day and today.month == month
+
+
+async def delete_message_after_delay(update: Update, delay_seconds: int = 30) -> None:
+    """
+    Delete user's command message after a delay
+    
+    Args:
+        update: Telegram update object
+        delay_seconds: Delay in seconds before deleting (default: 30)
+    """
+    try:
+        # Check if bot has permission to delete messages
+        chat_id = update.message.chat_id
+        message_id = update.message.message_id
+        
+        # Try to get chat info to check if bot is admin
+        if update.message.chat.type in ['group', 'supergroup']:
+            await asyncio.sleep(delay_seconds)
+            await update.get_bot().delete_message(chat_id=chat_id, message_id=message_id)
+            logger.debug(f"Deleted command message {message_id} from chat {chat_id}")
+    except TelegramError as e:
+        # Bot might not have permission to delete messages
+        logger.debug(f"Cannot delete message: {e}")
+    except Exception as e:
+        logger.error(f"Error deleting message: {e}")

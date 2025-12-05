@@ -52,11 +52,11 @@ async def main():
     set_birthday_conv = ConversationHandler(
         entry_points=[CommandHandler("setbirthday", BirthdayHandler.set_birthday_start)],
         states={
-            WAITING_FOR_MONTH: [
-                CallbackQueryHandler(BirthdayHandler.set_birthday_month, pattern="^set_month_"),
-            ],
             WAITING_FOR_DAY: [
                 CallbackQueryHandler(BirthdayHandler.set_birthday_day, pattern="^set_day_"),
+            ],
+            WAITING_FOR_MONTH: [
+                CallbackQueryHandler(BirthdayHandler.set_birthday_month, pattern="^set_month_"),
             ],
         },
         fallbacks=[CommandHandler("cancel", BirthdayHandler.cancel_conversation)],
@@ -67,11 +67,11 @@ async def main():
     update_birthday_conv = ConversationHandler(
         entry_points=[CommandHandler("updatebirthday", BirthdayHandler.update_birthday_start)],
         states={
-            WAITING_FOR_MONTH: [
-                CallbackQueryHandler(BirthdayHandler.update_birthday_month, pattern="^upd_month_"),
-            ],
             WAITING_FOR_DAY: [
                 CallbackQueryHandler(BirthdayHandler.update_birthday_day, pattern="^upd_day_"),
+            ],
+            WAITING_FOR_MONTH: [
+                CallbackQueryHandler(BirthdayHandler.update_birthday_month, pattern="^upd_month_"),
             ],
         },
         fallbacks=[CommandHandler("cancel", BirthdayHandler.cancel_conversation)],
@@ -80,15 +80,15 @@ async def main():
 
     # Conversation handler for new members
     new_member_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.STATUS_UPDATE, BirthdayHandler.new_member_welcome)],
+        entry_points=[MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, BirthdayHandler.new_member_welcome)],
         states={
-            WAITING_FOR_MONTH: [
-                CallbackQueryHandler(BirthdayHandler.new_member_month, pattern="^new_month_"),
-                CallbackQueryHandler(BirthdayHandler.new_member_month, pattern="^skip_birthday"),
-            ],
             WAITING_FOR_DAY: [
                 CallbackQueryHandler(BirthdayHandler.new_member_day, pattern="^new_day_"),
                 CallbackQueryHandler(BirthdayHandler.new_member_day, pattern="^skip_birthday"),
+            ],
+            WAITING_FOR_MONTH: [
+                CallbackQueryHandler(BirthdayHandler.new_member_month, pattern="^new_month_"),
+                CallbackQueryHandler(BirthdayHandler.new_member_month, pattern="^skip_birthday"),
             ],
         },
         fallbacks=[],
